@@ -30,7 +30,7 @@
             "version": "1.2.0-beta2",
             "type": "build"
         },
-        "Microsoft.ApplicationInsights": "2.3.0-beta3",
+      "Microsoft.ApplicationInsights": "2.4.0-beta1-build06796",
         "Microsoft.AspNetCore.Hosting": "1.0.0",
         "Microsoft.Extensions.Configuration": "1.0.0",
         "Microsoft.Extensions.Configuration.Json": "1.0.0",
@@ -76,31 +76,31 @@
         //    "version": "1.2.0-beta2",
         //    "type": "build"
         //},
-        "System.Threading.Tasks.Analyzers": {
-            "version": "1.2.0-beta2",
-            "type": "build"
-        }
-        //"Text.Analyzers": {
-        //    "version": "1.2.0-beta2",
-        //    "type": "build"
-        //},
-        //"XmlDocumentationComments.Analyzers": {
-        //    "version": "1.2.0-beta2",
-        //    "type": "build"
-        //},
+      "System.Threading.Tasks.Analyzers": {
+        "version": "1.2.0-beta2",
+        "type": "build"
+      },
+      //"Text.Analyzers": {
+      //    "version": "1.2.0-beta2",
+      //    "type": "build"
+      //},
+      //"XmlDocumentationComments.Analyzers": {
+      //    "version": "1.2.0-beta2",
+      //    "type": "build"
+      //},
     },
 
     "frameworks": {
         "net451": {
-            "dependencies": {
-                "Microsoft.ApplicationInsights.DependencyCollector": "2.3.0-beta3",
-                "Microsoft.ApplicationInsights.PerfCounterCollector": "2.3.0-beta3",
-                "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel": "2.3.0-beta3"
-            }
+          "dependencies": {
+            "Microsoft.ApplicationInsights.DependencyCollector": "2.4.0-beta1-build98",
+            "Microsoft.ApplicationInsights.PerfCounterCollector": "2.4.0-beta1-build98",
+            "Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel": "2.4.0-beta1-build06796"
+          }
         },
         "netstandard1.6": {
             "dependencies": {
-                "NETStandard.Library": "1.6.0",
+                "NETStandard.Library": "1.6.1",
                 "System.Net.NameResolution": "4.0.0"
             }
         }

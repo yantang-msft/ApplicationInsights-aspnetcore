@@ -13,6 +13,7 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
     using Microsoft.ApplicationInsights.Extensibility.Implementation;
     using Microsoft.AspNetCore.Http;
     using Xunit;
+    using System.Threading.Tasks;
 
     public class RequestTrackingMiddlewareTest
     {
@@ -75,12 +76,12 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         {
             HttpContext context = CreateContext(HttpRequestScheme, HttpRequestHost);
 
-            middleware.OnBeginRequest(context, 0);
+            middleware.OnHttpRequestInStart(context);
 
             Assert.NotNull(context.Features.Get<RequestTelemetry>());
             Assert.Equal(context.Response.Headers[RequestResponseHeaders.TargetInstrumentationKeyHeader], CommonMocks.InstrumentationKeyHash);
 
-            middleware.OnEndRequest(context, 0);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.Equal(1, sentTelemetry.Count);
             Assert.IsType<RequestTelemetry>(this.sentTelemetry.First());
@@ -101,12 +102,12 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         {
             HttpContext context = CreateContext(HttpRequestScheme, HttpRequestHost, HttpRequestPath, HttpRequestQueryString);
 
-            middleware.OnBeginRequest(context, 0);
+            middleware.OnHttpRequestInStart(context);
 
             Assert.NotNull(context.Features.Get<RequestTelemetry>());
             Assert.Equal(context.Response.Headers[RequestResponseHeaders.TargetInstrumentationKeyHeader], CommonMocks.InstrumentationKeyHash);
 
-            middleware.OnEndRequest(context, 0);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.Equal(1, sentTelemetry.Count);
             Assert.IsType<RequestTelemetry>(this.sentTelemetry[0]);
@@ -127,13 +128,13 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         {
             HttpContext context = CreateContext(HttpRequestScheme, HttpRequestHost);
 
-            middleware.OnBeginRequest(context, 0);
+            middleware.OnHttpRequestInStart(context);
 
             Assert.NotNull(context.Features.Get<RequestTelemetry>());
             Assert.Equal(context.Response.Headers[RequestResponseHeaders.TargetInstrumentationKeyHeader], CommonMocks.InstrumentationKeyHash);
 
             middleware.OnDiagnosticsUnhandledException(context, null);
-            middleware.OnEndRequest(context, 0);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.Equal(2, sentTelemetry.Count);
             Assert.IsType<ExceptionTelemetry>(this.sentTelemetry[0]);
@@ -151,16 +152,16 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         }
 
         [Fact]
-        public void OnEndRequestSetsRequestNameToMethodAndPathForPostRequest()
+        public void OnHttpRequestInStopSetsRequestNameToMethodAndPathForPostRequest()
         {
             HttpContext context = CreateContext(HttpRequestScheme, HttpRequestHost, "/Test", method: "POST");
 
-            middleware.OnBeginRequest(context, 0);
+            middleware.OnHttpRequestInStart(context);
 
             Assert.NotNull(context.Features.Get<RequestTelemetry>());
             Assert.Equal(context.Response.Headers[RequestResponseHeaders.TargetInstrumentationKeyHeader], CommonMocks.InstrumentationKeyHash);
 
-            middleware.OnEndRequest(context, 0);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.Equal(1, sentTelemetry.Count);
             Assert.IsType<RequestTelemetry>(this.sentTelemetry[0]);
@@ -177,16 +178,16 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         }
 
         [Fact]
-        public void OnEndRequestSetsRequestNameToMethodAndPath()
+        public void OnHttpRequestInStopSetsRequestNameToMethodAndPath()
         {
             HttpContext context = CreateContext(HttpRequestScheme, HttpRequestHost, "/Test", method: "GET");
 
-            middleware.OnBeginRequest(context, 0);
+            middleware.OnHttpRequestInStart(context);
 
             Assert.NotNull(context.Features.Get<RequestTelemetry>());
             Assert.Equal(context.Response.Headers[RequestResponseHeaders.TargetInstrumentationKeyHeader], CommonMocks.InstrumentationKeyHash);
 
-            middleware.OnEndRequest(context, 0);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.NotNull(this.sentTelemetry);
             Assert.IsType<RequestTelemetry>(this.sentTelemetry[0]);
@@ -203,17 +204,17 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         }
 
         [Fact]
-        public void OnEndRequestFromSameInstrumentationKey()
+        public void OnHttpRequestInStopFromSameInstrumentationKey()
         {
             HttpContext context = CreateContext(HttpRequestScheme, HttpRequestHost, "/Test", method: "GET");
             context.Request.Headers.Add(RequestResponseHeaders.SourceInstrumentationKeyHeader, CommonMocks.InstrumentationKeyHash);
 
-            middleware.OnBeginRequest(context, 0);
+            middleware.OnHttpRequestInStart(context);
 
             Assert.NotNull(context.Features.Get<RequestTelemetry>());
             Assert.Equal(context.Response.Headers[RequestResponseHeaders.TargetInstrumentationKeyHeader], CommonMocks.InstrumentationKeyHash);
 
-            middleware.OnEndRequest(context, 0);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.NotNull(this.sentTelemetry);
             Assert.IsType<RequestTelemetry>(this.sentTelemetry[0]);
@@ -230,17 +231,17 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         }
 
         [Fact]
-        public void OnEndRequestFromDifferentInstrumentationKey()
+        public void OnHttpRequestInStopFromDifferentInstrumentationKey()
         {
             HttpContext context = CreateContext(HttpRequestScheme, HttpRequestHost, "/Test", method: "GET");
             context.Request.Headers.Add(RequestResponseHeaders.SourceInstrumentationKeyHeader, "DIFFERENT_INSTRUMENTATION_KEY_HASH");
 
-            middleware.OnBeginRequest(context, 0);
+            middleware.OnHttpRequestInStart(context);
 
             Assert.NotNull(context.Features.Get<RequestTelemetry>());
             Assert.Equal(context.Response.Headers[RequestResponseHeaders.TargetInstrumentationKeyHeader], CommonMocks.InstrumentationKeyHash);
 
-            middleware.OnEndRequest(context, 0);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.Equal(1, sentTelemetry.Count);
             Assert.IsType<RequestTelemetry>(this.sentTelemetry[0]);
@@ -257,7 +258,7 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
         }
 
         [Fact]
-        public void SimultaneousRequestsGetDifferentIds()
+        public async void RequestsUnderDifferentActivitiesGetDifferentIds()
         {
             var context1 = new DefaultHttpContext();
             context1.Request.Scheme = HttpRequestScheme;
@@ -271,49 +272,60 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
             context2.Request.Method = "GET";
             context2.Request.Path = "/Test?id=2";
 
-            middleware.OnBeginRequest(context1, 0);
-            middleware.OnBeginRequest(context2, 0);
-            middleware.OnEndRequest(context1, 0);
-            middleware.OnEndRequest(context2, 0);
+            var task1 = Task.Run(() =>
+            {
+                var act = new Activity("operation1");
+                act.Start();
+                middleware.OnHttpRequestInStart(context1);
+                middleware.OnHttpRequestInStop(context1);
+            });
+
+            var task2 = Task.Run(() =>
+            {
+                var act = new Activity("operation2");
+                act.Start();
+                middleware.OnHttpRequestInStart(context2);
+                middleware.OnHttpRequestInStop(context2);
+            });
+
+            await Task.WhenAll(task1, task2);
 
             Assert.Equal(2, sentTelemetry.Count);
             var id1 = ((RequestTelemetry)sentTelemetry[0]).Id;
             var id2 = ((RequestTelemetry)sentTelemetry[1]).Id;
-            Assert.Equal(context1.TraceIdentifier, id1);
-            Assert.Equal(context2.TraceIdentifier, id2);
             Assert.NotEqual(id1, id2);
         }
 
+        //[Fact]
+        //public void SimultaneousRequestsGetCorrectDurations()
+        //{
+        //    var context1 = new DefaultHttpContext();
+        //    context1.Request.Scheme = HttpRequestScheme;
+        //    context1.Request.Host = HttpRequestHost;
+        //    context1.Request.Method = "GET";
+        //    context1.Request.Path = "/Test?id=1";
+
+        //    var context2 = new DefaultHttpContext();
+        //    context2.Request.Scheme = HttpRequestScheme;
+        //    context2.Request.Host = HttpRequestHost;
+        //    context2.Request.Method = "GET";
+        //    context2.Request.Path = "/Test?id=2";
+
+        //    long startTime = Stopwatch.GetTimestamp();
+        //    long simulatedSeconds = Stopwatch.Frequency;
+
+        //    middleware.OnHttpRequestInStart(context1, timestamp: startTime);
+        //    middleware.OnHttpRequestInStart(context2, timestamp: startTime + simulatedSeconds);
+        //    middleware.OnHttpRequestInStop(context1, timestamp: startTime + simulatedSeconds * 5);
+        //    middleware.OnHttpRequestInStop(context2, timestamp: startTime + simulatedSeconds * 10);
+
+        //    Assert.Equal(2, sentTelemetry.Count);
+        //    Assert.Equal(TimeSpan.FromSeconds(5), ((RequestTelemetry)sentTelemetry[0]).Duration);
+        //    Assert.Equal(TimeSpan.FromSeconds(9), ((RequestTelemetry)sentTelemetry[1]).Duration);
+        //}
+
         [Fact]
-        public void SimultaneousRequestsGetCorrectDurations()
-        {
-            var context1 = new DefaultHttpContext();
-            context1.Request.Scheme = HttpRequestScheme;
-            context1.Request.Host = HttpRequestHost;
-            context1.Request.Method = "GET";
-            context1.Request.Path = "/Test?id=1";
-
-            var context2 = new DefaultHttpContext();
-            context2.Request.Scheme = HttpRequestScheme;
-            context2.Request.Host = HttpRequestHost;
-            context2.Request.Method = "GET";
-            context2.Request.Path = "/Test?id=2";
-
-            long startTime = Stopwatch.GetTimestamp();
-            long simulatedSeconds = Stopwatch.Frequency;
-
-            middleware.OnBeginRequest(context1, timestamp: startTime);
-            middleware.OnBeginRequest(context2, timestamp: startTime + simulatedSeconds);
-            middleware.OnEndRequest(context1, timestamp: startTime + simulatedSeconds * 5);
-            middleware.OnEndRequest(context2, timestamp: startTime + simulatedSeconds * 10);
-
-            Assert.Equal(2, sentTelemetry.Count);
-            Assert.Equal(TimeSpan.FromSeconds(5), ((RequestTelemetry)sentTelemetry[0]).Duration);
-            Assert.Equal(TimeSpan.FromSeconds(9), ((RequestTelemetry)sentTelemetry[1]).Duration);
-        }
-
-        [Fact]
-        public void OnEndRequestSetsPreciseDurations()
+        public void OnHttpRequestInStopSetsDurations()
         {
             var context = new DefaultHttpContext();
             context.Request.Scheme = HttpRequestScheme;
@@ -321,16 +333,11 @@ namespace Microsoft.ApplicationInsights.AspNetCore.Tests
             context.Request.Method = "GET";
             context.Request.Path = "/Test?id=1";
 
-            long startTime = Stopwatch.GetTimestamp();
-            middleware.OnBeginRequest(context, timestamp: startTime);
-
-            var expectedDuration = TimeSpan.Parse("00:00:01.2345670");
-            double durationInStopwatchTicks = Stopwatch.Frequency * expectedDuration.TotalSeconds;
-
-            middleware.OnEndRequest(context, timestamp: startTime + (long)durationInStopwatchTicks);
+            middleware.OnHttpRequestInStart(context);
+            middleware.OnHttpRequestInStop(context);
 
             Assert.Equal(1, sentTelemetry.Count);
-            Assert.Equal(Math.Round(expectedDuration.TotalMilliseconds, 3), Math.Round(((RequestTelemetry)sentTelemetry[0]).Duration.TotalMilliseconds, 3));
+            Assert.NotEqual(0, ((RequestTelemetry)sentTelemetry[0]).Duration.TotalMilliseconds);
         }
     }
 }
